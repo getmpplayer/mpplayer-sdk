@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/mpp_logo.jpeg" alt="MPP Layer Logo" width="120" />
+  <img src="https://mpplayerprotocol.fly.dev/assets/mpp_logo-CR_b3v18.jpeg" alt="MPP Layer Logo" width="120" />
   <h1>@getmpplayer/sdk</h1>
   <p><strong>The First Autonomous Payment SDK for AI Agents (Machine Payments Protocol)</strong></p>
   

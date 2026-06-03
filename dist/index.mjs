@@ -49,22 +49,54 @@ var init_session = __esm({
         return response.json();
       }
       async handlePaymentChallenge(failedResponse, originalOptions) {
-        console.log("\u26A0\uFE0F [MPP SDK] Intercepted HTTP 402 Payment Required. Executing payment automatically...");
-        const mockSignature = "3xMockSignature...xyz";
-        const retryResponse = await fetch(originalOptions.url, {
-          method: originalOptions.method || "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Wallet": this.wallet.publicKey.toBase58(),
-            "X-Payment-Proof": mockSignature,
-            ...originalOptions.headers
-          },
-          body: originalOptions.body ? JSON.stringify(originalOptions.body) : void 0
-        });
-        if (!retryResponse.ok) {
-          throw new Error(`Payment failed or rejected. Status: ${retryResponse.status}`);
+        console.log("\u26A0\uFE0F [MPP SDK] Intercepted HTTP 402 Payment Required.");
+        let challenge;
+        try {
+          challenge = await failedResponse.json();
+        } catch (e) {
+          throw new Error("Invalid 402 response format. Expected JSON challenge.");
         }
-        return retryResponse.json();
+        const { amount, recipient } = challenge;
+        if (!amount || !recipient) {
+          throw new Error("Invalid 402 challenge: missing 'amount' or 'recipient'.");
+        }
+        console.log(`\u{1F4B8} [MPP SDK] Executing autonomous payment of ${amount} lamports to ${recipient}...`);
+        try {
+          const { PublicKey, SystemProgram, Transaction } = await import("@solana/web3.js");
+          const toPublicKey = new PublicKey(recipient);
+          const transaction = new Transaction().add(
+            SystemProgram.transfer({
+              fromPubkey: this.wallet.publicKey,
+              toPubkey: toPublicKey,
+              lamports: Number(amount)
+            })
+          );
+          const { blockhash } = await this.connection.getLatestBlockhash("confirmed");
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = this.wallet.publicKey;
+          transaction.sign(this.wallet);
+          const signature = await this.connection.sendRawTransaction(transaction.serialize());
+          console.log(`\u2705 [MPP SDK] Payment sent! Signature: ${signature}`);
+          await this.connection.confirmTransaction(signature, "confirmed");
+          console.log("\u{1F504} [MPP SDK] Retrying original request with payment proof...");
+          const retryResponse = await fetch(originalOptions.url, {
+            method: originalOptions.method || "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Wallet": this.wallet.publicKey.toBase58(),
+              "X-Payment-Proof": signature,
+              ...originalOptions.headers
+            },
+            body: originalOptions.body ? JSON.stringify(originalOptions.body) : void 0
+          });
+          if (!retryResponse.ok) {
+            throw new Error(`Payment proof rejected. Status: ${retryResponse.status}`);
+          }
+          return retryResponse.json();
+        } catch (error) {
+          console.error("\u274C [MPP SDK] Autonomous payment failed:", error);
+          throw error;
+        }
       }
     };
   }
