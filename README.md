@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/mpplayer/sdk/main/docs/logo.png" alt="MPP Layer Logo" width="120" />
+  <img src="public/mpp_logo.jpeg" alt="MPP Layer Logo" width="120" />
   <h1>@getmpplayer/sdk</h1>
   <p><strong>The First Autonomous Payment SDK for AI Agents (Machine Payments Protocol)</strong></p>
   
